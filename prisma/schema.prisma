@@ -1,0 +1,272 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------
+// Users
+// ---------------------
+model User {
+  id       String @id @default(uuid())
+  name     String
+  email    String @unique
+  password String
+  role     Role   @default(STUDENT)
+
+  tutorProfile TutorProfile?
+  bookings     Booking[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  reviews Review[]
+}
+
+// ---------------------
+// Tutor Profiles
+// ---------------------
+model TutorProfile {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+
+  bio        String?
+  hourlyRate Int
+  
+
+  teachingMode TeachingMode
+
+  street    String?
+  city      String
+  country   String
+  latitude  Float?
+  longitude Float?
+
+  subjects     TutorSubject[]
+  availability TutorAvailability[]
+  documents    VerificationDocument[]
+  bookings     Booking[]
+  experiences  TutorExperience[]
+
+  reviews Review[]
+}
+
+model TutorExperience {
+  id String @id @default(uuid())
+
+  tutorId String
+  tutor   TutorProfile @relation(fields: [tutorId], references: [id])
+
+  title        String // e.g. Web Development Instructor
+  organization String // e.g. COMSATS
+
+  subject String?
+
+  startDate DateTime
+  endDate   DateTime?
+
+  currentlyWorking Boolean @default(false)
+
+  description String?
+
+  createdAt DateTime @default(now())
+}
+
+// ---------------------
+// Verification Documents
+// ---------------------
+model VerificationDocument {
+  id      String       @id @default(uuid())
+  tutorId String
+  tutor   TutorProfile @relation(fields: [tutorId], references: [id])
+
+  type         VerificationType
+  url          String // File path or cloud storage
+  uploadedAt   DateTime         @default(now())
+  verified     Boolean          @default(false)
+  verifiedAt   DateTime?
+  adminComment String?
+}
+
+enum VerificationType {
+  CERTIFICATE
+  EXPERIENCE
+  IDENTITY
+}
+
+// ---------------------
+// Subjects
+// ---------------------
+model Subject {
+  id       String          @id @default(uuid())
+  name     String          @unique
+  category SubjectCategory
+
+  tutors TutorSubject[]
+
+  bookings Booking[]
+}
+
+enum SubjectCategory {
+  SCHOOL
+  UNIVERSITY
+  SKILL
+  LANGUAGE
+  TEST_PREP
+}
+
+// ---------------------
+// Tutor Subject Mapping
+// ---------------------
+model TutorSubject {
+  id        String @id @default(uuid())
+  tutorId   String
+  subjectId String
+
+  tutor   TutorProfile @relation(fields: [tutorId], references: [id])
+  subject Subject      @relation(fields: [subjectId], references: [id])
+
+  levels TutorSubjectLevel[]
+
+  @@unique([tutorId, subjectId])
+}
+
+// ---------------------
+// Levels
+// ---------------------
+model Level {
+  id                 String              @id @default(uuid())
+  name               String              @unique
+  tutorSubjectLevels TutorSubjectLevel[]
+  category SubjectCategory
+  bookings Booking[]
+}
+
+// ---------------------
+// TutorSubject ↔ Level Mapping
+// ---------------------
+model TutorSubjectLevel {
+  id             String @id @default(uuid())
+  tutorSubjectId String
+  levelId        String
+
+  tutorSubject TutorSubject @relation(fields: [tutorSubjectId], references: [id])
+  level        Level        @relation(fields: [levelId], references: [id])
+
+  @@unique([tutorSubjectId, levelId])
+}
+
+// ---------------------
+// Enums
+// ---------------------
+enum Role {
+  STUDENT
+  TUTOR
+  ADMIN
+}
+
+ enum TeachingMode {
+  ONLINE
+  HOME
+  BOTH
+}
+
+model TutorAvailability {
+  id String @id @default(uuid())
+
+  tutorId String
+  tutor   TutorProfile @relation(fields: [tutorId], references: [id])
+
+  dayOfWeek DayOfWeek
+
+  startTime DateTime
+  endTime   DateTime
+
+  @@unique([tutorId, dayOfWeek, startTime, endTime])
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+model Booking {
+  id String @id @default(uuid())
+
+  studentId String
+  student   User   @relation(fields: [studentId], references: [id])
+
+  tutorId String
+  tutor   TutorProfile @relation(fields: [tutorId], references: [id])
+
+  subjectId String
+  subject   Subject @relation(fields: [subjectId], references: [id])
+
+  levelId String
+  level   Level  @relation(fields: [levelId], references: [id])
+
+  scheduledAt DateTime
+  duration    Int // minutes
+
+  mode TeachingMode
+
+  price Int
+
+  status        BookingStatus @default(PENDING)
+  paymentStatus PaymentStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reviews Review[]
+}
+
+model Review {
+  id String @id @default(uuid())
+
+  studentId String
+  student   User @relation(fields: [studentId], references: [id])
+
+  tutorId String
+  tutor   TutorProfile @relation(fields: [tutorId], references: [id])
+
+  bookingId String
+  booking   Booking @relation(fields: [bookingId], references: [id])
+
+  rating Int // 1 to 5
+
+  comment String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([studentId, bookingId])
+}
+
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
