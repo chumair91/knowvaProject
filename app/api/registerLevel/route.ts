@@ -1,20 +1,21 @@
 import { SubjectCategory } from "@/app/generated/prisma/enums";
+import prisma from "@/app/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 
-type levelBody = {
+type LevelBody = {
   name: string;
   category: SubjectCategory;
 };
 
-type reqBody = {
-  levels: levelBody[];
+type ReqBody = {
+  levels: LevelBody[];
 };
 
 export async function POST(req: NextRequest) {
-  const body: reqBody = await req.json();
-  const { levels } = await body;
+  const body: ReqBody = await req.json();
+  const { levels } = body;
 
-  if (!levels || levels.length < 0) {
+  if (!levels || levels.length === 0) {
     return NextResponse.json(
       {
         message: "No data found",
@@ -24,12 +25,24 @@ export async function POST(req: NextRequest) {
   }
 
   for (const level of levels) {
-    console.log(level.name, level.category);
+    if (!level.name || !level.category) {
+      return NextResponse.json(
+        {
+          message: "name or category missing",
+        },
+        { status: 400 },
+      );
+    }
   }
+  const regLevel = await prisma.level.createMany({
+    data: levels,
+    skipDuplicates:true
+  });
 
   return NextResponse.json(
     {
-      message: "regsitered",
+      message: "level registered",
+      regLevel,
     },
     { status: 200 },
   );

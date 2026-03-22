@@ -44,7 +44,7 @@ model TutorProfile {
   
 
   teachingMode TeachingMode
-
+  timeZone String?
   street    String?
   city      String
   country   String
